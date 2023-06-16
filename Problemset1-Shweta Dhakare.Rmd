@@ -1,0 +1,114 @@
+---
+title: "Problem Set 1 - Delta Airlines "
+Name: Shweta Dhakare
+date: "2023-02-02"
+output:
+  html_document:
+    df_print: paged
+---
+
+In this notebook we are conducting an analysis for daily airline departure for Delta Airlines at Boston Logan Airport starting from January 1st, 2021 to October 31st, 2022. There are Dataset from other airlines too but we are conducting time-series analysis only on Delta Airlines. 
+
+```{r imp,message=FALSE,warning=FALSE,echo=FALSE}
+
+library(ggplot2)
+library(fpp2)
+
+df = read.csv('http://www.lukecherveny.com/ma611spring23/data/flights.csv')
+
+```
+
+## Flight
+This Dataset contains daily airlines departures for AA which is American Airlines, Delta which is Delta Airlines, and JetBlue which is for Jet Blue Airlines,the column Total signifies the total number of airlines departures for the particular dates for all the three airlines combined. 
+
+```{r clean,echo=FALSE, fig.align='center', out.width='80%'}
+da = ts (df$Delta)
+figure= autoplot (da,color= "Black") +
+ggtitle("Daily Delta airlines departures from logan airport") +
+    ylab("departures")
+print (figure)
+```
+
+The following qualitative properties of the time series were observed:
+
+- **Trend:** There appears to be an upward trend with some minor outliers. 
+- **Level:** It appears to be at non-constant level, with the mean number of Delta Departures per day moving to a lower level over saturdays. It is possible that Delta departures have weekly seasonality, with departures declining over saturdays. 
+- **Outliers:** There is no clear Outlier.
+- **Seasonality:** It is possible there is short-term seasonality, i.e. a repeating pattern in the daily Delta departures.
+
+We now investigate the possibility of weekly seasonality by constructing a seasonal plot.
+
+
+```{r daada, echo=FALSE, fig.align='center', out.width='80%'}
+da = ts(df$Delta, start =c (1,6), frequency = 7)
+fig1= ggseasonplot(da) +
+    ggtitle("Daily Departure Delta Airline from 2021 to 2022") +
+    ylab("Daily Depature") +
+    theme(legend.position = "none")
+print(fig1)
+
+```
+
+The seasonal plot confirms weekly seasonality. Throughout a typical week, the number of Delta departure decreases on Saturday, then goes upwards starting from Sunday and remains almost constant throughout the week, except for the Thanksgiving week in 2021 wherein we observe a decline in departures on the day of Thanksgiving which was a Thursday and Wednesdays and Saturdays having a significantly more departures than usual because of Thanksgiving Holiday Break. 
+
+
+## Prediction Methods
+
+We now consider three simple prediction methods:
+
+1. **Naive:** In the naive strategy, each in-sample prediction is simply the previously observed value:
+\[
+\hat x_t = x_{t-1}
+\]
+As we observe a strong seasonality in the seasonal plot with some minor oultliers the Naive Method might not be the appropriate way to predict the future values. 
+2. **Seasonal Naive** In the seasonal naive strategy, each in-sample prediction is the previously observed value *in that season*. In terms of weekly seasonality, this means
+\[
+\hat x_t = x_{t-7}
+\]
+As we observe a clear upward trend and strong seasonality, S.Naive method is an appropriate method to predict future values because Delta Departures on most weeks from the dataset are similar except few weeks which are generally Long Weekends or Holiday weeks. 
+3. **Constant Mean** In the constant mean strategy, each in-sample prediction is the average of all observed data:
+\[
+\hat x_t = \bar x
+\]
+This method may not be appropriate as we observe non-constant level with strong seasonality. 
+
+```{r Predic, echo=FALSE}
+da.naive = naive(da, h=15)
+da.snaive = snaive(da, h=15)
+da.meanf = meanf(da, h=15)
+
+da.naive.RMSE = round(accuracy(da.naive)[2], 2)
+da.snaive.RMSE = round(accuracy(da.snaive)[2], 2)
+da.meanf.RMSE = round(accuracy(da.meanf)[2], 2)
+print(da.naive.RMSE)
+print(da.snaive.RMSE)
+print(da.meanf.RMSE)
+
+da.naive.pred = da.naive$mean[15]
+da.snaive.pred = da.snaive$mean[15]
+da.meanf.pred = round(da.meanf$mean[15])
+print(da.naive.pred)
+print(da.snaive.pred)
+print(da.meanf.pred)
+
+```
+
+It turns out that the in-sample root mean squared error (RMSE) for naive, seasonal naive, and constant mean prediction methods are `r da.naive.RMSE`, `r da.snaive.RMSE`, and `r da.meanf.RMSE`, respectively. The lowest value is for the seasonal naive method, confirming that the seasonal naive method is most appropriate.So, according to S.Naive method the predicted value for November 15th 2022 for Delta Airlines is `r da.snaive.pred`. 
+
+```{r ue3, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', out.width='80%'}
+fig3 = autoplot(da, color="black") +
+    autolayer(fitted(da.naive), series="Naive") + 
+    autolayer(fitted(da.snaive), series="Seasonal Naive") + 
+    autolayer(fitted(da.meanf), series="Constant Mean") + 
+    ggtitle("In-Sample Predictions for Delta Daily Departure") +
+    ylab("Departure") + 
+    labs(color = "Prediction Method") + 
+    theme(legend.position = "right",
+          legend.background = element_rect(fill = "white", color = "black")) 
+
+print(fig3)
+```
+The above plot shows a visual comparison of in-sample prediction strategies. Interestingly, the seasonal naive strategy is better than the other strategies in terms of in-sample prediction accuracy as measured by RMSE, yet the naive strategy still manages to handle observations effectively.
+
+#Conclusion: 
+The study has determined that Delta Airlines Departures exhibit weekly seasonality at a non-constant level over the years 2021 and 2022. This repetitive weekly pattern in departures suggests that the seasonal naive method performs better in in-sample predictions compared to other basic techniques. As alternative time series models are evaluated for Delta Airlines Departures, it is advisable to use the seasonal naive as a benchmark for comparison.
